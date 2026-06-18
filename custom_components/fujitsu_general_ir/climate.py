@@ -125,10 +125,11 @@ class FujitsuGeneralClimate(
             name=entry.title,
             manufacturer="Fujitsu General",
         )
-        self._infrared_emitter_entity_id = entry.data[CONF_EMITTER_ENTITY_ID]
-        self._receiver_entity_id: str | None = entry.data.get(
-            CONF_RECEIVER_ENTITY_ID
-        )
+        # Options (set via the options flow) take precedence over the initial
+        # data so the emitter/receiver can be changed after setup.
+        conf = {**entry.data, **entry.options}
+        self._infrared_emitter_entity_id = conf[CONF_EMITTER_ENTITY_ID]
+        self._receiver_entity_id: str | None = conf.get(CONF_RECEIVER_ENTITY_ID)
         self._remove_receiver: CALLBACK_TYPE | None = None
 
         # assumed state, defaults until first command or restore
