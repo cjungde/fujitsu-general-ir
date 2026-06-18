@@ -25,36 +25,13 @@ import re
 import sys
 from pathlib import Path
 
-# Make the integration package importable.
-sys.path.insert(
-    0,
-    str(
-        Path(__file__).resolve().parents[1] / "custom_components" / "fujitsu_general_ir"
-    ),
-)
+# Make the integration package importable and stub the codec dependency when
+# the real infrared_protocols package isn't installed.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-# Provide a stub for the codec dependency when the real lib is absent.
-try:
-    import infrared_protocols.commands  # noqa: F401
-except ImportError:
-    import abc
-    import types
+import irstub  # noqa: E402
 
-    _pkg = types.ModuleType("infrared_protocols")
-    _cmds = types.ModuleType("infrared_protocols.commands")
-
-    class Command(abc.ABC):  # minimal stand-in
-        def __init__(self, *, modulation: int, repeat_count: int = 0) -> None:
-            self.modulation = modulation
-            self.repeat_count = repeat_count
-
-        @abc.abstractmethod
-        def get_raw_timings(self) -> list[int]: ...
-
-    _cmds.Command = Command
-    _pkg.commands = _cmds
-    sys.modules["infrared_protocols"] = _pkg
-    sys.modules["infrared_protocols.commands"] = _cmds
+irstub.setup()
 
 from codec import FujitsuCommand, decode  # noqa: E402
 

@@ -37,6 +37,10 @@ class FujitsuGeneralIrConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
+            # One config entry per emitter -> avoids two climate entities
+            # fighting over the same IR blaster.
+            await self.async_set_unique_id(user_input[CONF_EMITTER_ENTITY_ID])
+            self._abort_if_unique_id_configured()
             return self.async_create_entry(title=user_input[CONF_NAME], data=user_input)
 
         schema = vol.Schema(

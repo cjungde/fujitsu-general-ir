@@ -10,6 +10,9 @@
           "receiver_entity_id": "Infrared receiver (optional, tracks the original remote)"
         }
       }
+    },
+    "abort": {
+      "already_configured": "This infrared emitter is already configured."
     }
   },
   "options": {

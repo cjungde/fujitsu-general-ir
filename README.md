@@ -45,6 +45,9 @@ Home Assistant (this integration)          IR proxy (ESPHome XIAO IR Mate)
   the original remote; it is not real device feedback.
 - On an ESP32-C3 (XIAO) the RMT memory is tight; if TX+RX together misbehave,
   configure the proxy with TX only.
+- The temperature range is 16–30 °C. Real units only accept 18 °C as the lower
+  bound in *cooling*; below that the AC clamps to its own minimum (same
+  limitation as the ESPHome component this codec is ported from).
 - Ported/tested against the Fujitsu General state + off frames. If your model
   ignores the codes, capture the original remote via the receiver (debug log)
   and open an issue.

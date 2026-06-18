@@ -6,6 +6,9 @@ import logging
 from typing import Any
 
 from homeassistant.components.climate import (
+    ATTR_FAN_MODE,
+    ATTR_HVAC_MODE,
+    ATTR_SWING_MODE,
     ClimateEntity,
     ClimateEntityFeature,
     HVACMode,
@@ -22,61 +25,13 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
 
-from .codec import (
-    TEMP_MAX,
-    TEMP_MIN,
-    Fan,
-    FujitsuCommand,
-    FujitsuState,
-    Mode,
-    Swing,
-    decode,
-)
+from . import mapping
+from .codec import TEMP_MAX, TEMP_MIN, decode
 from .const import CONF_EMITTER_ENTITY_ID, CONF_RECEIVER_ENTITY_ID, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 1
-
-# --- mappings: HA climate <-> codec ---
-_HVAC_TO_MODE: dict[HVACMode, Mode] = {
-    HVACMode.HEAT_COOL: Mode.AUTO,
-    HVACMode.COOL: Mode.COOL,
-    HVACMode.DRY: Mode.DRY,
-    HVACMode.FAN_ONLY: Mode.FAN,
-    HVACMode.HEAT: Mode.HEAT,
-}
-_MODE_TO_HVAC: dict[Mode, HVACMode] = {v: k for k, v in _HVAC_TO_MODE.items()}
-
-_FAN_AUTO, _FAN_LOW, _FAN_MEDIUM, _FAN_HIGH, _FAN_QUIET = (
-    "auto",
-    "low",
-    "medium",
-    "high",
-    "quiet",
-)
-_FAN_TO_CODEC: dict[str, Fan] = {
-    _FAN_AUTO: Fan.AUTO,
-    _FAN_LOW: Fan.LOW,
-    _FAN_MEDIUM: Fan.MEDIUM,
-    _FAN_HIGH: Fan.HIGH,
-    _FAN_QUIET: Fan.SILENT,
-}
-_CODEC_TO_FAN: dict[Fan, str] = {v: k for k, v in _FAN_TO_CODEC.items()}
-
-_SWING_OFF, _SWING_VERT, _SWING_HORIZ, _SWING_BOTH = (
-    "off",
-    "vertical",
-    "horizontal",
-    "both",
-)
-_SWING_TO_CODEC: dict[str, Swing] = {
-    _SWING_OFF: Swing.NONE,
-    _SWING_VERT: Swing.VERTICAL,
-    _SWING_HORIZ: Swing.HORIZONTAL,
-    _SWING_BOTH: Swing.BOTH,
-}
-_CODEC_TO_SWING: dict[Swing, str] = {v: k for k, v in _SWING_TO_CODEC.items()}
 
 
 async def async_setup_entry(
@@ -107,8 +62,8 @@ class FujitsuGeneralClimate(
         HVACMode.DRY,
         HVACMode.FAN_ONLY,
     ]
-    _attr_fan_modes = [_FAN_AUTO, _FAN_LOW, _FAN_MEDIUM, _FAN_HIGH, _FAN_QUIET]
-    _attr_swing_modes = [_SWING_OFF, _SWING_VERT, _SWING_HORIZ, _SWING_BOTH]
+    _attr_fan_modes = mapping.FAN_MODES
+    _attr_swing_modes = mapping.SWING_MODES
     _attr_supported_features = (
         ClimateEntityFeature.TARGET_TEMPERATURE
         | ClimateEntityFeature.FAN_MODE
@@ -134,10 +89,11 @@ class FujitsuGeneralClimate(
 
         # assumed state, defaults until first command or restore
         self._attr_hvac_mode = HVACMode.OFF
-        self._attr_target_temperature = 22
-        self._attr_fan_mode = _FAN_AUTO
-        self._attr_swing_mode = _SWING_OFF
-        self._last_mode: Mode = Mode.AUTO
+        self._attr_target_temperature = 22.0
+        self._attr_fan_mode = mapping.FAN_AUTO
+        self._attr_swing_mode = mapping.SWING_OFF
+        # Last active (non-off) mode, restored by turn_on.
+        self._last_hvac_mode = HVACMode.HEAT_COOL
         # Mirrors ESPHome's `power_`: the unit's last known power state, used to
         # set the off->on flag. Tracked separately because the HVAC mode is
         # already updated before _transmit() runs.
@@ -154,10 +110,12 @@ class FujitsuGeneralClimate(
             attrs = last.attributes
             if (temp := attrs.get(ATTR_TEMPERATURE)) is not None:
                 self._attr_target_temperature = float(temp)
-            if (fan := attrs.get("fan_mode")) in self._attr_fan_modes:
+            if (fan := attrs.get(ATTR_FAN_MODE)) in self._attr_fan_modes:
                 self._attr_fan_mode = fan
-            if (swing := attrs.get("swing_mode")) in self._attr_swing_modes:
+            if (swing := attrs.get(ATTR_SWING_MODE)) in self._attr_swing_modes:
                 self._attr_swing_mode = swing
+            if self._attr_hvac_mode != HVACMode.OFF:
+                self._last_hvac_mode = self._attr_hvac_mode
 
         if self._receiver_entity_id:
             self._remove_receiver = async_subscribe_receiver(
@@ -171,47 +129,48 @@ class FujitsuGeneralClimate(
             self._remove_receiver()
             self._remove_receiver = None
 
+    def _set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Update the HVAC mode and remember the last active one."""
+        self._attr_hvac_mode = hvac_mode
+        if hvac_mode != HVACMode.OFF:
+            self._last_hvac_mode = hvac_mode
+
     # --- transmit ---
     async def _transmit(self) -> None:
         """Encode the current state and send it through the IR proxy."""
-        if self._attr_hvac_mode == HVACMode.OFF:
-            await self._send_command(FujitsuCommand(FujitsuState(power=False)))
-            self._power = False
-        else:
-            state = FujitsuState(
-                power=True,
-                temperature=int(self._attr_target_temperature or 22),
-                mode=_HVAC_TO_MODE[self._attr_hvac_mode],
-                fan=_FAN_TO_CODEC[self._attr_fan_mode or _FAN_AUTO],
-                swing=_SWING_TO_CODEC[self._attr_swing_mode or _SWING_OFF],
-            )
-            # was_on is the *previous* power state -> sets the off->on flag.
-            await self._send_command(FujitsuCommand(state, was_on=self._power))
-            self._power = True
+        # was_on is the *previous* power state -> sets the off->on flag.
+        command = mapping.build_command(
+            hvac_mode=self._attr_hvac_mode,
+            temperature=self._attr_target_temperature or 22,
+            fan_mode=self._attr_fan_mode or mapping.FAN_AUTO,
+            swing_mode=self._attr_swing_mode or mapping.SWING_OFF,
+            was_on=self._power,
+        )
+        await self._send_command(command)
+        self._power = self._attr_hvac_mode != HVACMode.OFF
         self.async_write_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set the HVAC mode."""
-        self._attr_hvac_mode = hvac_mode
-        if hvac_mode != HVACMode.OFF:
-            self._last_mode = _HVAC_TO_MODE[hvac_mode]
+        self._set_hvac_mode(hvac_mode)
         await self._transmit()
 
     async def async_turn_on(self) -> None:
         """Turn the AC on, restoring the last active mode."""
-        self._attr_hvac_mode = _MODE_TO_HVAC.get(self._last_mode, HVACMode.HEAT_COOL)
+        self._set_hvac_mode(self._last_hvac_mode)
         await self._transmit()
 
     async def async_turn_off(self) -> None:
         """Turn the AC off."""
-        self._attr_hvac_mode = HVACMode.OFF
+        self._set_hvac_mode(HVACMode.OFF)
         await self._transmit()
 
     async def async_set_temperature(self, **kwargs: Any) -> None:
-        """Set a new target temperature."""
-        if (temp := kwargs.get(ATTR_TEMPERATURE)) is None:
-            return
-        self._attr_target_temperature = temp
+        """Set a new target temperature (and optionally the HVAC mode)."""
+        if (hvac_mode := kwargs.get(ATTR_HVAC_MODE)) is not None:
+            self._set_hvac_mode(HVACMode(hvac_mode))
+        if (temp := kwargs.get(ATTR_TEMPERATURE)) is not None:
+            self._attr_target_temperature = temp
         if self._attr_hvac_mode != HVACMode.OFF:
             await self._transmit()
         else:
@@ -246,15 +205,12 @@ class FujitsuGeneralClimate(
                 signal.timings,
             )
             return
-        if not state.power:
-            self._attr_hvac_mode = HVACMode.OFF
-            self._power = False
-        else:
-            self._attr_hvac_mode = _MODE_TO_HVAC.get(state.mode, HVACMode.HEAT_COOL)
-            self._last_mode = state.mode
-            self._attr_target_temperature = state.temperature
-            self._attr_fan_mode = _CODEC_TO_FAN.get(state.fan, _FAN_AUTO)
-            self._attr_swing_mode = _CODEC_TO_SWING.get(state.swing, _SWING_OFF)
-            self._power = True
+        attrs = mapping.attrs_from_state(state)
+        self._set_hvac_mode(HVACMode(attrs["hvac_mode"]))
+        if state.power:
+            self._attr_target_temperature = attrs["temperature"]
+            self._attr_fan_mode = attrs["fan_mode"]
+            self._attr_swing_mode = attrs["swing_mode"]
+        self._power = state.power
         _LOGGER.debug("Decoded IR from remote: %s", state)
         self.async_write_ha_state()

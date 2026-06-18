@@ -1,0 +1,30 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Fujitsu General IR",
+        "description": "Control a Fujitsu General air conditioner through a generic infrared proxy (e.g. a XIAO Smart IR Mate running the ESPHome IR-proxy firmware).",
+        "data": {
+          "name": "Name",
+          "emitter_entity_id": "Infrared emitter (sends to the AC)",
+          "receiver_entity_id": "Infrared receiver (optional, tracks the original remote)"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "This infrared emitter is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Fujitsu General IR",
+        "description": "Change the infrared entities used to control the AC. Leaving the receiver empty removes remote tracking.",
+        "data": {
+          "emitter_entity_id": "Infrared emitter (sends to the AC)",
+          "receiver_entity_id": "Infrared receiver (optional, tracks the original remote)"
+        }
+      }
+    }
+  }
+}
