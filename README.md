@@ -1,5 +1,18 @@
 # Fujitsu General IR (Home Assistant)
 
+> [!WARNING]
+> **Experimental — not usable on a normal Home Assistant installation yet.**
+> This integration builds on Home Assistant's new core `infrared` integration,
+> which currently exists **only in the HA development branch** and is in no
+> stable release. On a normal HA it will fail to load with
+> *"dependency infrared not found"* — and you can't fix that yourself; it has
+> to ship in HA core first.
+>
+> **Want to control your Fujitsu AC today?** Use ESPHome's built-in
+> [`fujitsu_general` climate component](https://esphome.io/components/climate/climate_ir/)
+> on the same XIAO instead — a few lines of YAML, works now. See
+> [docs/alternative-esphome.md](docs/alternative-esphome.md).
+
 Control a **Fujitsu General** air conditioner (e.g. *ASHA12LCC*) over IR using
 Home Assistant's new **`infrared` proxy** architecture — the same approach as
 the [`lg_infrared`](https://www.home-assistant.io/integrations/lg_infrared)
@@ -23,21 +36,36 @@ Home Assistant (this integration)          IR proxy (ESPHome XIAO IR Mate)
 └───────────────────────────────┘          └──────────────────────────────┘
 ```
 
-## Requirements
+## Requirements (read first)
 
-- Home Assistant **2026.5+** with the core `infrared` integration available.
-- An IR proxy device that exposes `infrared` **emitter** (and optionally
-  **receiver**) entities — flash your XIAO IR Mate with the ESPHome
-  *IR-proxy* ready-made firmware from <https://esphome.io/projects/>
-  (not the Seeed "learn/send slots" factory firmware).
+You need **all** of these before installing:
+
+1. **Home Assistant with the core `infrared` integration** (currently HA
+   development branch only — see the warning above).
+2. **[HACS](https://hacs.xyz/) installed** in Home Assistant.
+3. **An IR proxy device** that exposes `infrared` **emitter** (and optionally
+   **receiver**) entities. Flash your XIAO IR Mate with the ESPHome *IR-proxy*
+   ready-made firmware from <https://esphome.io/projects/> — **not** the Seeed
+   "learn/send slots" factory firmware it ships with. After flashing, HA
+   discovers it and an `infrared.*` entity appears.
+
+> Without step 3 done first, the setup dialog's emitter dropdown will be
+> **empty** and you can't continue — that's expected, not a bug.
 
 ## Installation (HACS)
 
-1. HACS → ⋮ → *Custom repositories* → add this repo as type **Integration**.
-2. Install **Fujitsu General IR**, then restart Home Assistant.
-3. *Settings → Devices & Services → Add Integration → Fujitsu General IR*.
-4. Pick your infrared **emitter** entity (required) and optionally a
+1. In HACS: **⋮ → Custom repositories**, paste this repo's URL, category
+   **Integration**, **Add**.
+2. Search for **Fujitsu General IR**, open it, **Download**.
+3. **Restart Home Assistant** (Settings → System → Restart). The integration
+   does not appear until you restart.
+4. **Settings → Devices & Services → Add Integration**, search
+   **Fujitsu General IR**.
+5. Pick your infrared **emitter** entity (required) and optionally a
    **receiver** entity, then point the blaster at the AC.
+
+📖 New to this? See the step-by-step guide with screenshots-style detail and a
+troubleshooting table: **[docs/installation.md](docs/installation.md)**.
 
 ## Notes & limitations
 
