@@ -239,6 +239,12 @@ class FujitsuGeneralClimate(
         """Update assumed state when the physical remote is used."""
         state = decode(signal.timings)
         if state is None:
+            # Log the raw capture so a non-matching model can be analysed
+            # (e.g. with scripts/decode.py).
+            _LOGGER.debug(
+                "Received IR signal did not decode as Fujitsu General; raw timings: %s",
+                signal.timings,
+            )
             return
         if not state.power:
             self._attr_hvac_mode = HVACMode.OFF

@@ -67,6 +67,28 @@ mounted, so you can test the config flow, options flow and a live IR send.
 
 Run the codec unit tests directly with `pytest`.
 
+### Receiver verification
+
+Confirm your AC actually uses the frames this codec expects, by capturing the
+**original remote** and decoding it:
+
+**In Home Assistant (with a receiver configured):** set the integration's
+logger to debug (already on in the dev container) and point the remote at the
+XIAO receiver. A decoded frame logs as
+`Decoded IR from remote: FujitsuState(...)`; a non-matching one logs the raw
+timings so you can analyse them.
+
+**Standalone, offline:** capture the raw timings (e.g. a temporary ESPHome
+`remote_receiver:` with `dump: raw` on GPIO4 prints them to the ESPHome log),
+then:
+
+```bash
+scripts/decode.py "3300, -1600, 420, -1200, ..."   # or a file / stdin
+```
+
+It prints the decoded `FujitsuState` or explains why it didn't match. If your
+remote decodes cleanly, the integration will control your unit correctly.
+
 ## Status
 
 Early scaffold (v0.1.0). The codec is verified; the climate/config-flow wiring
