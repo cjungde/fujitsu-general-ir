@@ -1,0 +1,12 @@
+{
+  "domain": "fujitsu_general_ir",
+  "name": "Fujitsu General IR",
+  "codeowners": ["@cjungde"],
+  "config_flow": true,
+  "dependencies": ["infrared"],
+  "documentation": "https://github.com/cjungde/fujitsu-general-ir",
+  "integration_type": "device",
+  "iot_class": "assumed_state",
+  "issue_tracker": "https://github.com/cjungde/fujitsu-general-ir/issues",
+  "version": "0.1.0"
+}
