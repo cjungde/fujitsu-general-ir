@@ -1,0 +1,10 @@
+# Minimal Home Assistant config for local development of this integration.
+# `default_config` enables the config-entry UI, the ESPHome integration (to
+# discover an IR proxy), and the core `infrared` integration.
+default_config:
+
+logger:
+  default: info
+  logs:
+    custom_components.fujitsu_general_ir: debug
+    homeassistant.components.infrared: debug

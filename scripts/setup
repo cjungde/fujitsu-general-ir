@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Install Home Assistant + dev tooling into the devcontainer.
+set -e
+
+cd "$(dirname "$0")/.."
+
+python3 -m pip install --upgrade pip
+# Latest Home Assistant (pulls the core `infrared` integration + codec lib).
+python3 -m pip install homeassistant
+python3 -m pip install -r requirements_test.txt

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Run a local Home Assistant with this integration mounted, for live testing.
+set -e
+
+cd "$(dirname "$0")/.."
+
+mkdir -p config
+
+# Generate a default configuration on first run.
+if [ ! -f config/configuration.yaml ]; then
+  hass --config config --script ensure_config
+fi
+
+# Expose this integration to HA without copying it.
+mkdir -p config/custom_components
+ln -sfn "$(pwd)/custom_components/fujitsu_general_ir" \
+  config/custom_components/fujitsu_general_ir
+
+# Start HA (UI on http://localhost:8123).
+exec hass --config config --debug

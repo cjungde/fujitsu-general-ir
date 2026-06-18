@@ -6,3 +6,7 @@ venv/
 .ruff_cache/
 .pytest_cache/
 .DS_Store
+
+# Home Assistant dev runtime (keep only the checked-in config template)
+config/*
+!config/configuration.yaml

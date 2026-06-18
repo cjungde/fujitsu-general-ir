@@ -49,6 +49,24 @@ Home Assistant (this integration)          IR proxy (ESPHome XIAO IR Mate)
   ignores the codes, capture the original remote via the receiver (debug log)
   and open an issue.
 
+## Development / local testing
+
+A VS Code **dev container** runs a real Home Assistant with this integration
+mounted, so you can test the config flow, options flow and a live IR send.
+
+1. Open the repo in VS Code → *Reopen in Container* (needs Docker + the
+   *Dev Containers* extension). `scripts/setup` installs HA automatically.
+2. Run `scripts/develop` in the container terminal.
+3. Open <http://localhost:8123>, finish onboarding, then
+   *Settings → Devices & Services → Add Integration → Fujitsu General IR*.
+
+> To pick an emitter in the config flow you need an `infrared.*` entity to
+> exist — add your ESPHome IR-proxy (XIAO IR Mate) on the same network so HA
+> discovers it. Without the hardware the integration still loads, but the
+> emitter selector will be empty.
+
+Run the codec unit tests directly with `pytest`.
+
 ## Status
 
 Early scaffold (v0.1.0). The codec is verified; the climate/config-flow wiring
