@@ -1,3 +1,4 @@
-infrared-protocols==6.0.1
 pytest
 ruff
+# infrared-protocols (the real codec dependency, shipped with HA core) is
+# installed best-effort in CI; conftest.py provides a stub fallback.
