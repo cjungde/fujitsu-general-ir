@@ -78,6 +78,18 @@ def _checksum_util(msg: bytes) -> int:
     return (255 - msg[5]) & 0xFF
 
 
+def _safe_enum(enum_cls: type, value: int, default):
+    """Convert to an enum, falling back to a default for unknown values.
+
+    Real remotes can send nibble values we don't model (e.g. Fujitsu's 10 °C
+    mode 0x0B); never raise on a checksum-valid frame.
+    """
+    try:
+        return enum_cls(value)
+    except ValueError:
+        return default
+
+
 @dataclass
 class FujitsuState:
     """Full AC state carried in a single IR frame."""
@@ -189,7 +201,7 @@ def decode(timings: list[int]) -> FujitsuState | None:
     return FujitsuState(
         power=True,
         temperature=_get_nibble(msg, 16) + TEMP_MIN,
-        mode=Mode(_get_nibble(msg, 19)),
-        fan=Fan(_get_nibble(msg, 21)),
-        swing=Swing(_get_nibble(msg, 20)),
+        mode=_safe_enum(Mode, _get_nibble(msg, 19), Mode.AUTO),
+        fan=_safe_enum(Fan, _get_nibble(msg, 21), Fan.AUTO),
+        swing=_safe_enum(Swing, _get_nibble(msg, 20), Swing.NONE),
     )

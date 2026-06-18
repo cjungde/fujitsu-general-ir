@@ -15,6 +15,7 @@ sys.path.insert(
 )
 
 from codec import (  # noqa: E402
+    STATE_LEN,
     TEMP_MAX,
     TEMP_MIN,
     Fan,
@@ -22,7 +23,11 @@ from codec import (  # noqa: E402
     FujitsuState,
     Mode,
     Swing,
+    _bytes_to_signed_timings,
+    _checksum_state,
+    _set_nibble,
     decode,
+    encode_bytes,
 )
 
 
@@ -43,6 +48,17 @@ def test_off_round_trip() -> None:
     """The off frame round-trips."""
     off = FujitsuState(power=False)
     assert decode(FujitsuCommand(off).get_raw_timings()) == off
+
+
+def test_unknown_mode_does_not_raise() -> None:
+    """A checksum-valid frame with an unmapped mode (e.g. 0x0B) decodes safely."""
+    raw = bytearray(encode_bytes(FujitsuState(True, 24, Mode.AUTO, Fan.AUTO, Swing.NONE)))
+    raw[9] = 0  # clear mode nibble (byte9 low)
+    _set_nibble(raw, 19, 0x0B)  # Fujitsu 10 °C mode, not modelled here
+    raw[STATE_LEN - 1] = _checksum_state(bytes(raw))
+    state = decode(_bytes_to_signed_timings(bytes(raw)))
+    assert state is not None
+    assert state.mode == Mode.AUTO  # safe fallback, no ValueError
 
 
 def test_signed_timings() -> None:

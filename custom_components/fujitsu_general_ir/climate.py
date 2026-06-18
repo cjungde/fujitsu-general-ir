@@ -16,8 +16,8 @@ from homeassistant.components.infrared import (
     async_subscribe_receiver,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_TEMPERATURE, CALLBACK_TYPE, UnitOfTemperature
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.restore_state import RestoreEntity
@@ -137,6 +137,10 @@ class FujitsuGeneralClimate(
         self._attr_fan_mode = _FAN_AUTO
         self._attr_swing_mode = _SWING_OFF
         self._last_mode: Mode = Mode.AUTO
+        # Mirrors ESPHome's `power_`: the unit's last known power state, used to
+        # set the off->on flag. Tracked separately because the HVAC mode is
+        # already updated before _transmit() runs.
+        self._power = False
 
     async def async_added_to_hass(self) -> None:
         """Restore state and subscribe to the optional receiver."""
@@ -145,6 +149,7 @@ class FujitsuGeneralClimate(
         if (last := await self.async_get_last_state()) is not None:
             if last.state in [m.value for m in self._attr_hvac_modes]:
                 self._attr_hvac_mode = HVACMode(last.state)
+                self._power = self._attr_hvac_mode != HVACMode.OFF
             attrs = last.attributes
             if (temp := attrs.get(ATTR_TEMPERATURE)) is not None:
                 self._attr_target_temperature = float(temp)
@@ -168,9 +173,9 @@ class FujitsuGeneralClimate(
     # --- transmit ---
     async def _transmit(self) -> None:
         """Encode the current state and send it through the IR proxy."""
-        was_on = self._attr_hvac_mode != HVACMode.OFF
         if self._attr_hvac_mode == HVACMode.OFF:
-            state = FujitsuState(power=False)
+            await self._send_command(FujitsuCommand(FujitsuState(power=False)))
+            self._power = False
         else:
             state = FujitsuState(
                 power=True,
@@ -179,7 +184,9 @@ class FujitsuGeneralClimate(
                 fan=_FAN_TO_CODEC[self._attr_fan_mode or _FAN_AUTO],
                 swing=_SWING_TO_CODEC[self._attr_swing_mode or _SWING_OFF],
             )
-        await self._send_command(FujitsuCommand(state, was_on=was_on))
+            # was_on is the *previous* power state -> sets the off->on flag.
+            await self._send_command(FujitsuCommand(state, was_on=self._power))
+            self._power = True
         self.async_write_ha_state()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
@@ -234,11 +241,13 @@ class FujitsuGeneralClimate(
             return
         if not state.power:
             self._attr_hvac_mode = HVACMode.OFF
+            self._power = False
         else:
             self._attr_hvac_mode = _MODE_TO_HVAC.get(state.mode, HVACMode.HEAT_COOL)
             self._last_mode = state.mode
             self._attr_target_temperature = state.temperature
             self._attr_fan_mode = _CODEC_TO_FAN.get(state.fan, _FAN_AUTO)
             self._attr_swing_mode = _CODEC_TO_SWING.get(state.swing, _SWING_OFF)
+            self._power = True
         _LOGGER.debug("Decoded IR from remote: %s", state)
         self.async_write_ha_state()
