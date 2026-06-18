@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import Any
 
 import voluptuous as vol
-
 from homeassistant.config_entries import (
     ConfigEntry,
     ConfigFlow,
@@ -38,9 +37,7 @@ class FujitsuGeneralIrConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            return self.async_create_entry(
-                title=user_input[CONF_NAME], data=user_input
-            )
+            return self.async_create_entry(title=user_input[CONF_NAME], data=user_input)
 
         schema = vol.Schema(
             {
@@ -49,9 +46,7 @@ class FujitsuGeneralIrConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Optional(CONF_RECEIVER_ENTITY_ID): _emitter_selector(),
             }
         )
-        return self.async_show_form(
-            step_id="user", data_schema=schema, errors=errors
-        )
+        return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
     @staticmethod
     @callback

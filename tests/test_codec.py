@@ -1,20 +1,14 @@
 """Round-trip tests for the Fujitsu General codec.
 
-Requires ``infrared_protocols`` to be importable (it ships with the Home
-Assistant ``infrared`` integration). Run with: ``pytest tests/``.
+Import paths and the ``infrared_protocols`` dependency are set up in
+``conftest.py``. Run with: ``pytest tests/``.
 """
 
 from __future__ import annotations
 
 import itertools
-import sys
-from pathlib import Path
 
-sys.path.insert(
-    0, str(Path(__file__).resolve().parents[1] / "custom_components" / "fujitsu_general_ir")
-)
-
-from codec import (  # noqa: E402
+from codec import (
     STATE_LEN,
     TEMP_MAX,
     TEMP_MIN,
@@ -52,7 +46,8 @@ def test_off_round_trip() -> None:
 
 def test_unknown_mode_does_not_raise() -> None:
     """A checksum-valid frame with an unmapped mode (e.g. 0x0B) decodes safely."""
-    raw = bytearray(encode_bytes(FujitsuState(True, 24, Mode.AUTO, Fan.AUTO, Swing.NONE)))
+    base = FujitsuState(True, 24, Mode.AUTO, Fan.AUTO, Swing.NONE)
+    raw = bytearray(encode_bytes(base))
     raw[9] = 0  # clear mode nibble (byte9 low)
     _set_nibble(raw, 19, 0x0B)  # Fujitsu 10 °C mode, not modelled here
     raw[STATE_LEN - 1] = _checksum_state(bytes(raw))
