@@ -1,16 +1,16 @@
 # Fujitsu General IR (Home Assistant)
 
 > [!WARNING]
-> **Experimental — not usable on a normal Home Assistant installation yet.**
-> This integration builds on Home Assistant's new core `infrared` integration,
-> which currently exists **only in the HA development branch** and is in no
-> stable release. On a normal HA it will fail to load with
-> *"dependency infrared not found"* — and you can't fix that yourself; it has
-> to ship in HA core first.
+> **Experimental — works in principle, but not yet verified on real hardware.**
+> This integration builds on Home Assistant's core `infrared` integration,
+> which has shipped since **HA 2026.4** (verified against 2026.6). So it loads
+> on a normal, up-to-date HA — but it still requires that you flash your XIAO
+> with the IR-proxy firmware first, and it has **not yet been tested end-to-end
+> against a physical AC**. Treat it as a beta.
 >
-> **Want to control your Fujitsu AC today?** Use ESPHome's built-in
+> **Prefer a device-side, battle-tested setup?** ESPHome's built-in
 > [`fujitsu_general` climate component](https://esphome.io/components/climate/climate_ir/)
-> on the same XIAO instead — a few lines of YAML, works now. See
+> on the same XIAO is a few lines of YAML and is mature. See
 > [docs/alternative-esphome.md](docs/alternative-esphome.md).
 
 Control a **Fujitsu General** air conditioner (e.g. *ASHA12LCC*) over IR using
@@ -40,8 +40,8 @@ Home Assistant (this integration)          IR proxy (ESPHome XIAO IR Mate)
 
 You need **all** of these before installing:
 
-1. **Home Assistant with the core `infrared` integration** (currently HA
-   development branch only — see the warning above).
+1. **Home Assistant 2026.6+** (the core `infrared` integration shipped in
+   2026.4; this integration is verified against the 2026.6 API).
 2. **[HACS](https://hacs.xyz/) installed** in Home Assistant.
 3. **An IR proxy device** that exposes `infrared` **emitter** (and optionally
    **receiver**) entities. Flash your XIAO IR Mate with the ESPHome *IR-proxy*

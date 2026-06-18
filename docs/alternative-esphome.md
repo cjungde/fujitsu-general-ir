@@ -1,9 +1,8 @@
 # Alternative: control your Fujitsu AC today with ESPHome
 
-This integration depends on Home Assistant's new core `infrared` stack, which
-is not in a stable HA release yet. If you just want a **working climate entity
-now**, ESPHome has a mature, built-in Fujitsu component — no custom integration,
-no HACS, no waiting.
+The main integration in this repo is still beta and not yet verified against a
+physical AC. If you want a **mature, proven climate entity** with no custom
+integration and no HACS, ESPHome has a built-in Fujitsu component.
 
 The same XIAO Smart IR Mate runs it. Here the codec runs **on the device**
 (the opposite of this project, where it runs on the HA server), so all you need
