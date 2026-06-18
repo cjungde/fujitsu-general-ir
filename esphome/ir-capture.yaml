@@ -1,0 +1,47 @@
+# Temporary ESPHome config for the XIAO Smart IR Mate (ESP32-C3) to CAPTURE
+# the raw IR timings of your original Fujitsu remote.
+#
+# Flash this, open the ESPHome logs, point the remote at the XIAO and press a
+# button. Each press prints a line like:
+#   [remote.raw] Received Raw: 3300, -1600, 420, -1200, ...
+# Copy those numbers and run them through scripts/decode.py.
+#
+# This is a *capture-only* firmware. Re-flash the IR-proxy firmware afterwards.
+
+esphome:
+  name: xiao-ir-capture
+  friendly_name: XIAO IR Capture
+
+esp32:
+  board: seeed_xiao_esp32c3
+  framework:
+    type: esp-idf
+
+logger:
+  level: DEBUG
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+
+captive_portal:
+
+# IR receiver on the XIAO IR Mate (D2 = GPIO4).
+remote_receiver:
+  pin:
+    number: GPIO4
+    inverted: true
+  # Raw dump prints the mark/space timing list to the log.
+  dump: raw
+  # A Fujitsu state frame is long; widen the buffer/tolerances a bit.
+  tolerance: 25%
+  buffer_size: 2kb
+  idle: 8ms
