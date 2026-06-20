@@ -109,9 +109,7 @@ class FujitsuGeneralClimate(
         self._receiver_entity_id: str | None = conf.get(CONF_RECEIVER_ENTITY_ID)
         self._remove_receiver: CALLBACK_TYPE | None = None
         # Optional power meter for on/off detection.
-        self._power_sensor_entity_id: str | None = conf.get(
-            CONF_POWER_SENSOR_ENTITY_ID
-        )
+        self._power_sensor_entity_id: str | None = conf.get(CONF_POWER_SENSOR_ENTITY_ID)
         self._power_on_threshold: float = float(
             conf.get(CONF_POWER_ON_THRESHOLD, DEFAULT_POWER_ON_THRESHOLD)
         )

@@ -36,9 +36,7 @@ def _emitter_selector() -> EntitySelector:
 
 
 def _power_sensor_selector() -> EntitySelector:
-    return EntitySelector(
-        EntitySelectorConfig(domain="sensor", device_class="power")
-    )
+    return EntitySelector(EntitySelectorConfig(domain="sensor", device_class="power"))
 
 
 def _threshold_selector() -> NumberSelector:
