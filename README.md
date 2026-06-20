@@ -72,6 +72,13 @@ troubleshooting table: **[docs/installation.md](docs/installation.md)**.
 
 - IR is one-way → `assumed_state`. The optional receiver only lets HA *track*
   the original remote; it is not real device feedback.
+- **Optional power sensor for on/off**: if the AC is on a metered plug, point
+  the integration at that power sensor and set an on-threshold (watts). HA then
+  syncs **on/off** from the actual draw — the one thing IR can't read back. It
+  cannot recover mode/temperature/fan; on an off→on transition the last active
+  mode is assumed. A short grace period after each IR command keeps a just-sent
+  command from being reverted by the transitional draw. Pick a threshold above
+  standby but below the fan-only draw; a unit idling at setpoint may read as off.
 - On an ESP32-C3 (XIAO) the RMT memory is tight; if TX+RX together misbehave,
   configure the proxy with TX only.
 - The temperature range is 16–30 °C. Real units only accept 18 °C as the lower

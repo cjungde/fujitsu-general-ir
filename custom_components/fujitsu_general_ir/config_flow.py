@@ -16,13 +16,37 @@ from homeassistant.core import callback
 from homeassistant.helpers.selector import (
     EntitySelector,
     EntitySelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
 )
 
-from .const import CONF_EMITTER_ENTITY_ID, CONF_RECEIVER_ENTITY_ID, DOMAIN
+from .const import (
+    CONF_EMITTER_ENTITY_ID,
+    CONF_POWER_ON_THRESHOLD,
+    CONF_POWER_SENSOR_ENTITY_ID,
+    CONF_RECEIVER_ENTITY_ID,
+    DEFAULT_POWER_ON_THRESHOLD,
+    DOMAIN,
+)
 
 
 def _emitter_selector() -> EntitySelector:
     return EntitySelector(EntitySelectorConfig(domain="infrared"))
+
+
+def _power_sensor_selector() -> EntitySelector:
+    return EntitySelector(
+        EntitySelectorConfig(domain="sensor", device_class="power")
+    )
+
+
+def _threshold_selector() -> NumberSelector:
+    return NumberSelector(
+        NumberSelectorConfig(
+            min=0, max=5000, step=1, unit_of_measurement="W", mode=NumberSelectorMode.BOX
+        )
+    )
 
 
 class FujitsuGeneralIrConfigFlow(ConfigFlow, domain=DOMAIN):
@@ -48,6 +72,10 @@ class FujitsuGeneralIrConfigFlow(ConfigFlow, domain=DOMAIN):
                 vol.Required(CONF_NAME, default="Klimaanlage"): str,
                 vol.Required(CONF_EMITTER_ENTITY_ID): _emitter_selector(),
                 vol.Optional(CONF_RECEIVER_ENTITY_ID): _emitter_selector(),
+                vol.Optional(CONF_POWER_SENSOR_ENTITY_ID): _power_sensor_selector(),
+                vol.Optional(
+                    CONF_POWER_ON_THRESHOLD, default=DEFAULT_POWER_ON_THRESHOLD
+                ): _threshold_selector(),
             }
         )
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
@@ -83,6 +111,18 @@ class FujitsuGeneralIrOptionsFlow(OptionsFlow):
                         "suggested_value": current.get(CONF_RECEIVER_ENTITY_ID)
                     },
                 ): _emitter_selector(),
+                vol.Optional(
+                    CONF_POWER_SENSOR_ENTITY_ID,
+                    description={
+                        "suggested_value": current.get(CONF_POWER_SENSOR_ENTITY_ID)
+                    },
+                ): _power_sensor_selector(),
+                vol.Optional(
+                    CONF_POWER_ON_THRESHOLD,
+                    default=current.get(
+                        CONF_POWER_ON_THRESHOLD, DEFAULT_POWER_ON_THRESHOLD
+                    ),
+                ): _threshold_selector(),
             }
         )
         return self.async_show_form(step_id="init", data_schema=schema)
