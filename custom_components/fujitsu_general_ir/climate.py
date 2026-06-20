@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import Any
 
@@ -19,15 +20,24 @@ from homeassistant.components.infrared import (
     async_subscribe_receiver,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.const import ATTR_TEMPERATURE, STATE_UNAVAILABLE, UnitOfTemperature
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.restore_state import RestoreEntity
 
 from . import mapping
 from .codec import TEMP_MAX, TEMP_MIN, decode
-from .const import CONF_EMITTER_ENTITY_ID, CONF_RECEIVER_ENTITY_ID, DOMAIN
+from .const import (
+    CONF_EMITTER_ENTITY_ID,
+    CONF_RECEIVER_ENTITY_ID,
+    DOMAIN,
+    EMITTER_WAIT_TIMEOUT,
+    SEND_RETRIES,
+    SEND_RETRY_BACKOFF,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,6 +60,9 @@ class FujitsuGeneralClimate(
 
     _attr_has_entity_name = True
     _attr_name = None
+    # IR is one-way; the entity tracks an assumed state and should ride out a
+    # proxy that briefly drops off the LAN rather than going unavailable.
+    _attr_assumed_state = True
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_target_temperature_step = 1.0
     _attr_min_temp = TEMP_MIN
@@ -99,6 +112,51 @@ class FujitsuGeneralClimate(
         # already updated before _transmit() runs.
         self._power = False
 
+    @property
+    def available(self) -> bool:
+        """Stay available across brief emitter/LAN drops.
+
+        The emitter going ``unavailable`` for a few seconds (e.g. the proxy
+        briefly leaving the LAN) must not make the AC entity unavailable, as
+        that would make Home Assistant reject service calls outright. Because
+        this is an assumed-state, one-way IR device we keep reporting available
+        and instead wait + retry on send (see ``_send_with_retry``). Only report
+        unavailable if the emitter entity is entirely gone (e.g. removed).
+        """
+        return (
+            self.hass is not None
+            and self.hass.states.get(self._infrared_emitter_entity_id) is not None
+        )
+
+    def _emitter_available(self) -> bool:
+        """True if the emitter entity exists and is not currently unavailable."""
+        state = self.hass.states.get(self._infrared_emitter_entity_id)
+        return state is not None and state.state != STATE_UNAVAILABLE
+
+    async def _wait_for_emitter(self) -> bool:
+        """Wait (bounded) for the emitter to become available after a LAN drop."""
+        if self._emitter_available():
+            return True
+
+        ready = asyncio.Event()
+
+        @callback
+        def _check(_event: Any) -> None:
+            if self._emitter_available():
+                ready.set()
+
+        unsub = async_track_state_change_event(
+            self.hass, self._infrared_emitter_entity_id, _check
+        )
+        try:
+            async with asyncio.timeout(EMITTER_WAIT_TIMEOUT):
+                await ready.wait()
+            return True
+        except TimeoutError:
+            return False
+        finally:
+            unsub()
+
     async def async_added_to_hass(self) -> None:
         """Restore state and subscribe to the optional receiver."""
         await super().async_added_to_hass()
@@ -146,9 +204,46 @@ class FujitsuGeneralClimate(
             swing_mode=self._attr_swing_mode or mapping.SWING_OFF,
             was_on=self._power,
         )
-        await self._send_command(command)
+        await self._send_with_retry(command)
         self._power = self._attr_hvac_mode != HVACMode.OFF
         self.async_write_ha_state()
+
+    async def _send_with_retry(self, command: Any) -> None:
+        """Send a command, tolerating a proxy that briefly leaves the LAN.
+
+        Waits for the emitter to be reachable, then retries the transmit a few
+        times with exponential backoff. Raises ``HomeAssistantError`` only if
+        the proxy stays down for the whole window, so a momentary drop no longer
+        loses the command.
+        """
+        if not await self._wait_for_emitter():
+            raise HomeAssistantError(
+                f"IR emitter {self._infrared_emitter_entity_id} is unavailable; "
+                "command not sent"
+            )
+
+        delay = SEND_RETRY_BACKOFF
+        last_err: Exception | None = None
+        for attempt in range(1, SEND_RETRIES + 1):
+            try:
+                await self._send_command(command)
+                if attempt > 1:
+                    _LOGGER.info("IR command sent on attempt %s", attempt)
+                return
+            except HomeAssistantError as err:
+                last_err = err
+                _LOGGER.warning(
+                    "IR send attempt %s/%s failed: %s", attempt, SEND_RETRIES, err
+                )
+                if attempt < SEND_RETRIES:
+                    await asyncio.sleep(delay)
+                    delay *= 2
+                    # The failure may itself be a fresh drop; wait for the
+                    # emitter to come back before the next attempt.
+                    await self._wait_for_emitter()
+
+        assert last_err is not None
+        raise last_err
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set the HVAC mode."""
