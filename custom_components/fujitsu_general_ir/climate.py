@@ -176,10 +176,43 @@ class FujitsuGeneralClimate(
                 self._last_hvac_mode = self._attr_hvac_mode
 
         if self._receiver_entity_id:
-            self._remove_receiver = async_subscribe_receiver(
-                self.hass, self._receiver_entity_id, self._handle_signal
+            self._async_attach_receiver()
+
+    @callback
+    def _async_attach_receiver(self) -> None:
+        """Subscribe to the receiver, (re)trying whenever it (re)appears.
+
+        At startup or after a LAN drop the proxy's receiver entity may not exist
+        yet; subscribing then raises ``receiver_not_found`` and would abort
+        entity setup. Instead, watch the entity and subscribe once it is
+        present, so a brief drop never breaks the climate entity.
+        """
+
+        @callback
+        def _try_subscribe(_event: Any = None) -> None:
+            if self._remove_receiver is not None:
+                return  # already subscribed
+            if self.hass.states.get(self._receiver_entity_id) is None:
+                return  # not there yet; the tracker will fire again
+            try:
+                self._remove_receiver = async_subscribe_receiver(
+                    self.hass, self._receiver_entity_id, self._handle_signal
+                )
+            except HomeAssistantError as err:
+                _LOGGER.debug(
+                    "IR receiver %s not ready yet: %s",
+                    self._receiver_entity_id,
+                    err,
+                )
+
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass, self._receiver_entity_id, _try_subscribe
             )
-            self.async_on_remove(self._unsubscribe_receiver)
+        )
+        self.async_on_remove(self._unsubscribe_receiver)
+        # Try once now in case the receiver is already available.
+        _try_subscribe()
 
     @callback
     def _unsubscribe_receiver(self) -> None:
