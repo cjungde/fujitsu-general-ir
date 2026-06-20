@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Fujitsu General IR",
-        "description": "Steuere eine Fujitsu-General-Klimaanlage über einen generischen Infrarot-Proxy (z. B. ein XIAO Smart IR Mate mit der ESPHome-IR-Proxy-Firmware).",
+        "description": "Erkannter IR-Proxy: {detected}.\n\nSender (und ein passender Empfänger) sind unten vorausgefüllt — einfach bestätigen, oder ändern, falls du mehrere Proxies hast.",
         "data": {
           "name": "Name",
           "emitter_entity_id": "Infrarot-Sender (sendet an die Klimaanlage)",
@@ -14,7 +14,8 @@
       }
     },
     "abort": {
-      "already_configured": "Dieser Infrarot-Sender ist bereits eingerichtet."
+      "already_configured": "Dieser Infrarot-Sender ist bereits eingerichtet.",
+      "no_ir_proxy": "Kein Infrarot-Proxy gefunden. Füge ein IR-Proxy-Gerät hinzu (z. B. ein XIAO IR Mate mit der ESPHome-IR-Proxy-Firmware), sodass eine `infrared`-Sender-Entität in Home Assistant erscheint, und starte die Einrichtung erneut."
     }
   },
   "options": {

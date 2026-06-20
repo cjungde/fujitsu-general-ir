@@ -50,8 +50,10 @@ You need **all** of these before installing:
    "learn/send slots" factory firmware it ships with. After flashing, HA
    discovers it and an `infrared.*` entity appears.
 
-> Without step 3 done first, the setup dialog's emitter dropdown will be
-> **empty** and you can't continue — that's expected, not a bug.
+> The setup **auto-detects** your IR proxy: the emitter (and a matching
+> receiver on the same device) are pre-filled — you just confirm. If step 3
+> isn't done yet, setup aborts with a short note telling you to add a proxy
+> first, rather than showing an empty form.
 
 ## Installation (HACS)
 
@@ -62,8 +64,9 @@ You need **all** of these before installing:
    does not appear until you restart.
 4. **Settings → Devices & Services → Add Integration**, search
    **Fujitsu General IR**.
-5. Pick your infrared **emitter** entity (required) and optionally a
-   **receiver** entity, then point the blaster at the AC.
+5. The detected IR proxy is pre-filled (emitter + matching receiver) — confirm,
+   or adjust if you run several proxies. Optionally add a power sensor for
+   on/off detection, then point the blaster at the AC.
 
 📖 New to this? See the step-by-step guide with screenshots-style detail and a
 troubleshooting table: **[docs/installation.md](docs/installation.md)**.
