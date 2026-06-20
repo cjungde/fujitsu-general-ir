@@ -44,7 +44,11 @@ def _power_sensor_selector() -> EntitySelector:
 def _threshold_selector() -> NumberSelector:
     return NumberSelector(
         NumberSelectorConfig(
-            min=0, max=5000, step=1, unit_of_measurement="W", mode=NumberSelectorMode.BOX
+            min=0,
+            max=5000,
+            step=1,
+            unit_of_measurement="W",
+            mode=NumberSelectorMode.BOX,
         )
     )
 
