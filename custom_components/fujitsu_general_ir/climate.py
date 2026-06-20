@@ -20,7 +20,12 @@ from homeassistant.components.infrared import (
     async_subscribe_receiver,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_TEMPERATURE, STATE_UNAVAILABLE, UnitOfTemperature
+from homeassistant.const import (
+    ATTR_TEMPERATURE,
+    STATE_UNAVAILABLE,
+    STATE_UNKNOWN,
+    UnitOfTemperature,
+)
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -32,9 +37,13 @@ from . import mapping
 from .codec import TEMP_MAX, TEMP_MIN, decode
 from .const import (
     CONF_EMITTER_ENTITY_ID,
+    CONF_POWER_ON_THRESHOLD,
+    CONF_POWER_SENSOR_ENTITY_ID,
     CONF_RECEIVER_ENTITY_ID,
+    DEFAULT_POWER_ON_THRESHOLD,
     DOMAIN,
     EMITTER_WAIT_TIMEOUT,
+    POWER_SYNC_GRACE,
     SEND_RETRIES,
     SEND_RETRY_BACKOFF,
 )
@@ -99,6 +108,16 @@ class FujitsuGeneralClimate(
         self._infrared_emitter_entity_id = conf[CONF_EMITTER_ENTITY_ID]
         self._receiver_entity_id: str | None = conf.get(CONF_RECEIVER_ENTITY_ID)
         self._remove_receiver: CALLBACK_TYPE | None = None
+        # Optional power meter for on/off detection.
+        self._power_sensor_entity_id: str | None = conf.get(
+            CONF_POWER_SENSOR_ENTITY_ID
+        )
+        self._power_on_threshold: float = float(
+            conf.get(CONF_POWER_ON_THRESHOLD, DEFAULT_POWER_ON_THRESHOLD)
+        )
+        # Monotonic deadline until which power-derived on/off is suppressed
+        # because we just transmitted (the draw is still transitional).
+        self._suppress_power_until: float = 0.0
 
         # assumed state, defaults until first command or restore
         self._attr_hvac_mode = HVACMode.OFF
@@ -178,6 +197,52 @@ class FujitsuGeneralClimate(
         if self._receiver_entity_id:
             self._async_attach_receiver()
 
+        if self._power_sensor_entity_id:
+            self.async_on_remove(
+                async_track_state_change_event(
+                    self.hass,
+                    self._power_sensor_entity_id,
+                    self._handle_power_event,
+                )
+            )
+            # Sync once now from the current reading.
+            self._sync_power_state()
+
+    @callback
+    def _handle_power_event(self, _event: Any) -> None:
+        """Re-evaluate on/off whenever the power reading changes."""
+        self._sync_power_state()
+
+    @callback
+    def _sync_power_state(self) -> None:
+        """Detect on/off from the power meter and update the assumed state.
+
+        This only flips power on/off -- IR cannot read back mode, temperature or
+        fan, so on an off->on transition the last active HVAC mode is assumed.
+        No IR is transmitted here; it is a pure observation of the AC's draw.
+        """
+        if self._power_sensor_entity_id is None:
+            return
+        if self.hass.loop.time() < self._suppress_power_until:
+            return
+        state = self.hass.states.get(self._power_sensor_entity_id)
+        if state is None or state.state in (STATE_UNAVAILABLE, STATE_UNKNOWN):
+            return
+        try:
+            watts = float(state.state)
+        except (TypeError, ValueError):
+            return
+
+        is_on = watts >= self._power_on_threshold
+        if is_on and self._attr_hvac_mode == HVACMode.OFF:
+            self._set_hvac_mode(self._last_hvac_mode)
+            self._power = True
+            self.async_write_ha_state()
+        elif not is_on and self._attr_hvac_mode != HVACMode.OFF:
+            self._set_hvac_mode(HVACMode.OFF)
+            self._power = False
+            self.async_write_ha_state()
+
     @callback
     def _async_attach_receiver(self) -> None:
         """Subscribe to the receiver, (re)trying whenever it (re)appears.
@@ -239,6 +304,8 @@ class FujitsuGeneralClimate(
         )
         await self._send_with_retry(command)
         self._power = self._attr_hvac_mode != HVACMode.OFF
+        # Our command is authoritative; ignore the transitional draw for a bit.
+        self._suppress_power_until = self.hass.loop.time() + POWER_SYNC_GRACE
         self.async_write_ha_state()
 
     async def _send_with_retry(self, command: Any) -> None:

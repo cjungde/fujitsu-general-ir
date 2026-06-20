@@ -7,7 +7,9 @@
         "data": {
           "name": "Name",
           "emitter_entity_id": "Infrarot-Sender (sendet an die Klimaanlage)",
-          "receiver_entity_id": "Infrarot-Empfänger (optional, verfolgt die Original-Fernbedienung)"
+          "receiver_entity_id": "Infrarot-Empfänger (optional, verfolgt die Original-Fernbedienung)",
+          "power_sensor_entity_id": "Leistungssensor (optional, erkennt An/Aus am Stromverbrauch)",
+          "power_on_threshold": "An-Schwelle in Watt (Verbrauch ab diesem Wert gilt als An)"
         }
       }
     },
@@ -22,7 +24,9 @@
         "description": "Ändere die für die Steuerung verwendeten Infrarot-Entitäten. Lässt du den Empfänger leer, wird die Fernbedienungs-Verfolgung entfernt.",
         "data": {
           "emitter_entity_id": "Infrarot-Sender (sendet an die Klimaanlage)",
-          "receiver_entity_id": "Infrarot-Empfänger (optional, verfolgt die Original-Fernbedienung)"
+          "receiver_entity_id": "Infrarot-Empfänger (optional, verfolgt die Original-Fernbedienung)",
+          "power_sensor_entity_id": "Leistungssensor (optional, erkennt An/Aus am Stromverbrauch)",
+          "power_on_threshold": "An-Schwelle in Watt (Verbrauch ab diesem Wert gilt als An)"
         }
       }
     }

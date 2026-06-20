@@ -7,7 +7,9 @@
         "data": {
           "name": "Name",
           "emitter_entity_id": "Infrared emitter (sends to the AC)",
-          "receiver_entity_id": "Infrared receiver (optional, tracks the original remote)"
+          "receiver_entity_id": "Infrared receiver (optional, tracks the original remote)",
+          "power_sensor_entity_id": "Power sensor (optional, detects on/off from the AC's draw)",
+          "power_on_threshold": "On threshold in watts (draw at or above this counts as on)"
         }
       }
     },
@@ -22,7 +24,9 @@
         "description": "Change the infrared entities used to control the AC. Leaving the receiver empty removes remote tracking.",
         "data": {
           "emitter_entity_id": "Infrared emitter (sends to the AC)",
-          "receiver_entity_id": "Infrared receiver (optional, tracks the original remote)"
+          "receiver_entity_id": "Infrared receiver (optional, tracks the original remote)",
+          "power_sensor_entity_id": "Power sensor (optional, detects on/off from the AC's draw)",
+          "power_on_threshold": "On threshold in watts (draw at or above this counts as on)"
         }
       }
     }
