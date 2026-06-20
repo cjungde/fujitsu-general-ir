@@ -1,12 +1,13 @@
 # Fujitsu General IR (Home Assistant)
 
-> [!WARNING]
-> **Experimental — works in principle, but not yet verified on real hardware.**
+> [!NOTE]
+> **Beta — verified end-to-end against real hardware (2026-06-20).**
 > This integration builds on Home Assistant's core `infrared` integration,
-> which has shipped since **HA 2026.4** (verified against 2026.6). So it loads
-> on a normal, up-to-date HA — but it still requires that you flash your XIAO
-> with the IR-proxy firmware first, and it has **not yet been tested end-to-end
-> against a physical AC**. Treat it as a beta.
+> which has shipped since **HA 2026.4** (verified against 2026.6). It loads
+> on a normal, up-to-date HA, and has been confirmed end-to-end against a
+> physical Fujitsu General AC: `set_hvac_mode` was transmitted via a Seeed
+> XIAO IR-proxy and the AC acknowledged with a beep. You still need to flash
+> your XIAO with the IR-proxy firmware first. Treat it as a working beta.
 >
 > **Prefer a device-side, battle-tested setup?** ESPHome's built-in
 > [`fujitsu_general` climate component](https://esphome.io/components/climate/climate_ir/)
