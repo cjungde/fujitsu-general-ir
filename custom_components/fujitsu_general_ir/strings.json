@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Fujitsu General IR",
-        "description": "Control a Fujitsu General air conditioner through a generic infrared proxy (e.g. a XIAO Smart IR Mate running the ESPHome IR-proxy firmware).",
+        "description": "Detected IR proxy: {detected}.\n\nThe emitter (and a matching receiver) are pre-filled below — just confirm, or change them if you have several proxies.",
         "data": {
           "name": "Name",
           "emitter_entity_id": "Infrared emitter (sends to the AC)",
@@ -14,7 +14,8 @@
       }
     },
     "abort": {
-      "already_configured": "This infrared emitter is already configured."
+      "already_configured": "This infrared emitter is already configured.",
+      "no_ir_proxy": "No infrared proxy found. Add an IR-proxy device (e.g. a XIAO IR Mate on the ESPHome IR-proxy firmware) so an `infrared` emitter entity appears in Home Assistant, then start setup again."
     }
   },
   "options": {
