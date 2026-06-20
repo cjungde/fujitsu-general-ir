@@ -117,7 +117,7 @@ original remote and decoding it — either live in Home Assistant or offline wit
 
 ## Status
 
-Working beta (v0.2.0). The codec is verified and the full chain has been
+Working beta (v0.3.0). The codec is verified and the full chain has been
 confirmed end-to-end against a physical Fujitsu General AC. The climate/
 config-flow wiring targets the current core `infrared` consumer API and may
 need tweaks as that API stabilizes.
