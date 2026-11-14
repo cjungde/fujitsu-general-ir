@@ -52,6 +52,15 @@ _LOGGER = logging.getLogger(__name__)
 
 PARALLEL_UPDATES = 1
 
+# HA 2026.11 renamed the climate temperature shorthands to native_*; the old
+# names log a deprecation warning there and stop working in 2027.11. Older HA
+# versions only know the old names, so pick the one this HA reads.
+_ATTR_TARGET_TEMPERATURE = (
+    "_attr_native_target_temperature"
+    if hasattr(ClimateEntity, "native_target_temperature")
+    else "_attr_target_temperature"
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -72,6 +81,8 @@ class FujitsuGeneralClimate(
     # IR is one-way; the entity tracks an assumed state and should ride out a
     # proxy that briefly drops off the LAN rather than going unavailable.
     _attr_assumed_state = True
+    # Both names: HA >= 2026.11 reads the native one, older versions the other.
+    _attr_native_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
     _attr_target_temperature_step = 1.0
     _attr_min_temp = TEMP_MIN
@@ -119,7 +130,7 @@ class FujitsuGeneralClimate(
 
         # assumed state, defaults until first command or restore
         self._attr_hvac_mode = HVACMode.OFF
-        self._attr_target_temperature = 22.0
+        self._target_temperature = 22.0
         self._attr_fan_mode = mapping.FAN_AUTO
         self._attr_swing_mode = mapping.SWING_OFF
         # Last active (non-off) mode, restored by turn_on.
@@ -128,6 +139,15 @@ class FujitsuGeneralClimate(
         # set the off->on flag. Tracked separately because the HVAC mode is
         # already updated before _transmit() runs.
         self._power = False
+
+    @property
+    def _target_temperature(self) -> float | None:
+        """Target temperature, stored under the shorthand this HA version reads."""
+        return getattr(self, _ATTR_TARGET_TEMPERATURE)
+
+    @_target_temperature.setter
+    def _target_temperature(self, value: float | None) -> None:
+        setattr(self, _ATTR_TARGET_TEMPERATURE, value)
 
     @property
     def available(self) -> bool:
@@ -184,7 +204,7 @@ class FujitsuGeneralClimate(
                 self._power = self._attr_hvac_mode != HVACMode.OFF
             attrs = last.attributes
             if (temp := attrs.get(ATTR_TEMPERATURE)) is not None:
-                self._attr_target_temperature = float(temp)
+                self._target_temperature = float(temp)
             if (fan := attrs.get(ATTR_FAN_MODE)) in self._attr_fan_modes:
                 self._attr_fan_mode = fan
             if (swing := attrs.get(ATTR_SWING_MODE)) in self._attr_swing_modes:
@@ -295,7 +315,7 @@ class FujitsuGeneralClimate(
         # was_on is the *previous* power state -> sets the off->on flag.
         command = mapping.build_command(
             hvac_mode=self._attr_hvac_mode,
-            temperature=self._attr_target_temperature or 22,
+            temperature=self._target_temperature or 22,
             fan_mode=self._attr_fan_mode or mapping.FAN_AUTO,
             swing_mode=self._attr_swing_mode or mapping.SWING_OFF,
             was_on=self._power,
@@ -363,7 +383,7 @@ class FujitsuGeneralClimate(
         if (hvac_mode := kwargs.get(ATTR_HVAC_MODE)) is not None:
             self._set_hvac_mode(HVACMode(hvac_mode))
         if (temp := kwargs.get(ATTR_TEMPERATURE)) is not None:
-            self._attr_target_temperature = temp
+            self._target_temperature = temp
         if self._attr_hvac_mode != HVACMode.OFF:
             await self._transmit()
         else:
@@ -401,7 +421,7 @@ class FujitsuGeneralClimate(
         attrs = mapping.attrs_from_state(state)
         self._set_hvac_mode(HVACMode(attrs["hvac_mode"]))
         if state.power:
-            self._attr_target_temperature = attrs["temperature"]
+            self._target_temperature = attrs["temperature"]
             self._attr_fan_mode = attrs["fan_mode"]
             self._attr_swing_mode = attrs["swing_mode"]
         self._power = state.power
