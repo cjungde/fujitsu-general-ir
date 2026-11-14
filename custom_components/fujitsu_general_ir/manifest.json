@@ -1,6 +1,7 @@
 {
   "domain": "fujitsu_general_ir",
   "name": "Fujitsu General IR",
+  "categories": ["climate.heat_pumps_air_conditioning"],
   "codeowners": ["@cjungde"],
   "config_flow": true,
   "dependencies": ["infrared"],

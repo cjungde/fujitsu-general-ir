@@ -19,6 +19,14 @@ jobs:
         with:
           args: "format --check ."
 
+  hacs:
+    name: HACS (repository)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: hacs/action@main
+        with:
+          category: integration
+
   hassfest:
     name: Hassfest (manifest)
     runs-on: ubuntu-latest
