@@ -212,6 +212,17 @@ class FujitsuGeneralClimate(
             if self._attr_hvac_mode != HVACMode.OFF:
                 self._last_hvac_mode = self._attr_hvac_mode
 
+        # `available` follows the emitter's existence, which the base class
+        # does not report: after a restart the proxy registers a few seconds
+        # after this entity, so re-write the state once it appears (or goes).
+        self.async_on_remove(
+            async_track_state_change_event(
+                self.hass,
+                self._infrared_emitter_entity_id,
+                self._handle_emitter_event,
+            )
+        )
+
         if self._receiver_entity_id:
             self._async_attach_receiver()
 
@@ -225,6 +236,12 @@ class FujitsuGeneralClimate(
             )
             # Sync once now from the current reading.
             self._sync_power_state()
+
+    @callback
+    def _handle_emitter_event(self, event: Any) -> None:
+        """Re-write the state when the emitter entity appears or is removed."""
+        if (event.data["old_state"] is None) != (event.data["new_state"] is None):
+            self.async_write_ha_state()
 
     @callback
     def _handle_power_event(self, _event: Any) -> None:
